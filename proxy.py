@@ -75,28 +75,35 @@ async def handle_playing_now(payload: List[Dict[str, Any]]) -> None:
 
 @app.api_route("/{full_path:path}", methods=["GET","POST","PUT","PATCH","DELETE","OPTIONS","HEAD"])
 async def proxy(request: Request, full_path: str):
+    import logging
+    logger = logging.getLogger("proxy")
     # Special handling for ListenBrainz submit-listens
     if request.method.upper() == "POST" and request.url.path == "/1/submit-listens":
+        logger.info("POST /1/submit-listens erkannt")
         body_bytes = await request.body()
+        logger.debug(f"Request-Body: {body_bytes!r}")
 
         listen_type = None
         payload = None
         try:
             data = await request.json()
+            logger.debug(f"JSON-Body: {data!r}")
             listen_type = (data or {}).get("listen_type")
             payload = (data or {}).get("payload")
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Fehler beim Parsen des JSON-Bodys: {e}")
             data = None
 
         # If playing_now detected, run local handler and send webhook to HA
         if listen_type == "playing_now" and isinstance(payload, list):
-            # 1) Run local callback (await to ensure completion before forwarding, or spawn if you prefer)
+            logger.info("playing_now erkannt, handle_playing_now wird aufgerufen")
             await handle_playing_now(payload)
 
         # Forward unchanged to upstream and return its response
         upstream_url = httpx.URL(TARGET_BASE).join(request.url.path)
         if request.url.query:
             upstream_url = upstream_url.copy_with(query=request.url.query)
+        logger.info(f"Leite Anfrage weiter an Upstream: {upstream_url}")
 
         incoming_headers = filter_headers(request.headers.items())
         client_host = request.client.host if request.client else None
@@ -106,10 +113,12 @@ async def proxy(request: Request, full_path: str):
             xff_val = f"{existing_xff}, {client_host}" if existing_xff else client_host
             headers = [(k, v) for (k, v) in headers if k.lower() != "x-forwarded-for"]
             headers.append(("x-forwarded-for", xff_val))
+            logger.debug(f"X-Forwarded-For gesetzt: {xff_val}")
 
         upstream_resp = await upstream_client.request(
             request.method, upstream_url, headers=headers, content=body_bytes
         )
+        logger.info(f"Antwort von Upstream erhalten: Status {upstream_resp.status_code}")
         resp_headers = filter_headers(upstream_resp.headers.items())
         return Response(
             content=upstream_resp.content,
@@ -122,6 +131,7 @@ async def proxy(request: Request, full_path: str):
     upstream_url = httpx.URL(TARGET_BASE).join(request.url.path)
     if request.url.query:
         upstream_url = upstream_url.copy_with(query=request.url.query)
+    logger.info(f"Leite generische Anfrage weiter an Upstream: {upstream_url}")
 
     incoming_headers = filter_headers(request.headers.items())
     client_host = request.client.host if request.client else None
@@ -131,11 +141,14 @@ async def proxy(request: Request, full_path: str):
         xff_val = f"{existing_xff}, {client_host}" if existing_xff else client_host
         headers = [(k, v) for (k, v) in headers if k.lower() != "x-forwarded-for"]
         headers.append(("x-forwarded-for", xff_val))
+        logger.debug(f"X-Forwarded-For gesetzt: {xff_val}")
 
     body_bytes = await request.body()
+    logger.debug(f"Request-Body: {body_bytes!r}")
     upstream_resp = await upstream_client.request(
         request.method, upstream_url, headers=headers, content=body_bytes
     )
+    logger.info(f"Antwort von Upstream erhalten: Status {upstream_resp.status_code}")
     resp_headers = filter_headers(upstream_resp.headers.items())
     return Response(
         content=upstream_resp.content,
