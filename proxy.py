@@ -47,6 +47,8 @@ async def post_to_webhook(payload: List[Dict[str, Any]]) -> Optional[int]:
         return None
     try:
         # Send the same structure ListenBrainz uses so HA automations can access trigger.json.*
+        # logging the payload for debugging
+        print("Posting to webhook")
         resp = await webhook_client.post(
             WEBHOOK_URL,
             json={"payload": payload},
