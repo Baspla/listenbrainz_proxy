@@ -2,6 +2,9 @@
 import os
 from typing import Iterable, Any, List, Dict, Optional
 
+import sys
+from logging import StreamHandler, Formatter, getLogger
+
 from fastapi import FastAPI, Request, Response
 import httpx
 
@@ -13,9 +16,12 @@ if LOG_LEVEL not in ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]:
     LOG_LEVEL = "INFO"
 
 
-import logging
-logger = logging.getLogger("proxy")
-logger.setLevel(LOG_LEVEL)
+logger = getLogger("proxy")
+handler = StreamHandler(sys.stdout)
+handler.setLevel(LOG_LEVEL)
+handler.setFormatter(Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
+logger.addHandler(handler)
+logger.propagate = False
 
 
 
@@ -86,8 +92,8 @@ async def handle_playing_now(payload: List[Dict[str, Any]]) -> None:
 @app.api_route("/{full_path:path}", methods=["GET","POST","PUT","PATCH","DELETE","OPTIONS","HEAD"])
 async def proxy(request: Request, full_path: str):
     # Special handling for ListenBrainz submit-listens
-    if request.method.upper() == "POST" and request.url.path == "/1/submit-listens":
-        logger.info("POST /1/submit-listens erkannt")
+    if request.method.upper() == "POST" and request.url.path == "/apis/listenbrainz/1/submit-listens":
+        logger.info("POST /apis/listenbrainz/1/submit-listens erkannt")
         body_bytes = await request.body()
         logger.debug(f"Request-Body: {body_bytes!r}")
 
