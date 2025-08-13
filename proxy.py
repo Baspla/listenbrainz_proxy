@@ -62,8 +62,9 @@ async def post_to_webhook(payload: List[Dict[str, Any]]) -> Optional[int]:
             print(f"Webhook posted successfully: {resp.status_code}")
 
         return resp.status_code
-    except Exception:
+    except Exception as e:
         # Intentionally swallow errors to not affect upstream forwarding
+        print(f"Error posting to webhook: {e}")
         return None
 
 # Your custom handler for playing_now
