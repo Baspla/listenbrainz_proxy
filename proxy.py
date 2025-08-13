@@ -8,6 +8,16 @@ import httpx
 TARGET_BASE = os.getenv("TARGET_BASE", "http://localhost:8080")
 WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+if LOG_LEVEL not in ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]:
+    LOG_LEVEL = "INFO"
+
+
+import logging
+logger = logging.getLogger("proxy")
+logger.setLevel(LOG_LEVEL)
+
+
 
 HOP_BY_HOP = {
     "connection", "keep-alive", "proxy-authenticate", "proxy-authorization",
@@ -75,8 +85,6 @@ async def handle_playing_now(payload: List[Dict[str, Any]]) -> None:
 
 @app.api_route("/{full_path:path}", methods=["GET","POST","PUT","PATCH","DELETE","OPTIONS","HEAD"])
 async def proxy(request: Request, full_path: str):
-    import logging
-    logger = logging.getLogger("proxy")
     # Special handling for ListenBrainz submit-listens
     if request.method.upper() == "POST" and request.url.path == "/1/submit-listens":
         logger.info("POST /1/submit-listens erkannt")
