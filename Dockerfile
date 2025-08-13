@@ -6,8 +6,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# System-Dependencies nach Bedarf (z.B. ca-certificates)
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
+RUN apk update && apk add --no-cache ca-certificates
 
 # Abhängigkeitsdateien zuerst kopieren (besseres Layer-Caching)
 COPY requirements.txt ./
