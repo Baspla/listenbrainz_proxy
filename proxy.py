@@ -2,26 +2,11 @@
 import os
 from typing import Iterable, Any, List, Dict, Optional
 
-import sys
-from logging import StreamHandler, Formatter, getLogger
-
 from fastapi import FastAPI, Request, Response
 import httpx
 
 TARGET_BASE = os.getenv("TARGET_BASE", "http://localhost:8080")
 WEBHOOK_URL = os.getenv("WEBHOOK_URL")
-
-LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
-if LOG_LEVEL not in ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]:
-    LOG_LEVEL = "INFO"
-
-
-logger = getLogger("proxy")
-handler = StreamHandler(sys.stdout)
-handler.setLevel(LOG_LEVEL)
-handler.setFormatter(Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
-logger.addHandler(handler)
-logger.propagate = False
 
 
 
@@ -71,6 +56,11 @@ async def post_to_webhook(payload: List[Dict[str, Any]]) -> Optional[int]:
             headers={"Content-Type": "application/json"},
             timeout=build_timeout(),
         )
+        if resp.status_code != 200:
+            print(f"Webhook failed with status {resp.status_code}: {resp.text}")
+        else:
+            print(f"Webhook posted successfully: {resp.status_code}")
+
         return resp.status_code
     except Exception:
         # Intentionally swallow errors to not affect upstream forwarding
